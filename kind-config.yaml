@@ -1,0 +1,15 @@
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: projet-final
+networking:
+  disableDefaultCNI: false # Calico/Cilium possible en couche 2 si vous voulez
+  podSubnet: "10.244.0.0/16"
+nodes:
+  - role: control-plane
+    extraPortMappings:
+    - { containerPort: 80, hostPort: 80, protocol: TCP } # Ingress HTTP
+    - { containerPort: 443, hostPort: 443, protocol: TCP } # Ingress HTTPS
+    - { containerPort: 30080, hostPort: 30080, protocol: TCP } # ArgoCD UI NodePort
+    - { containerPort: 30090, hostPort: 30090, protocol: TCP } # Grafana NodePort
+  - role: worker
+  - role: worker
