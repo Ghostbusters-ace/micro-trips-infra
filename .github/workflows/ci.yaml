@@ -1,0 +1,58 @@
+name: Build and Push to GHCR
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    # La "matrix" permet de ne pas répéter le code 3 fois. 
+    # GitHub va lancer 3 jobs en parallèle pour tout ce qui est app
+    strategy:
+      matrix:
+        app: [catalog, booking, worker]
+    
+    # Autorisations nécessaires pour pousser sur le registre et trivy
+    permissions:
+      contents: read
+      packages: write
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }} # Token généré automatiquement par GitHub
+
+      - name: Downcase GitHub username
+        # Docker refuse les majuscules dans les noms d'images. 
+        run: echo "REPO_OWNER=${GITHUB_REPOSITORY_OWNER,,}" >> ${GITHUB_ENV}
+
+      - name: Build and push ${{ matrix.app }}
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/${{ matrix.app }}
+          push: true
+          tags: |
+            ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:latest
+            ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}
+
+      - name: Trivy scan for ${{ matrix.app }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          # On cible l'image qu'on vient juste de construire
+          image-ref: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '1' # ⚠️ obligatoire pour bloquer la pipeline
