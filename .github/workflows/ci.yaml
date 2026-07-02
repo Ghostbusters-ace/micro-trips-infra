@@ -56,3 +56,26 @@ jobs:
           image-ref: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: '1' # ⚠️ obligatoire pour bloquer la pipeline
+
+      - name: Bump tag in gitops repo
+        run: |
+          # 1. Clone le dépôt GitOps avec le fameux token
+          git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/${{ env.REPO_OWNER }}/micro-trips-gitops.git
+          cd micro-trips-gitops
+          
+          # 2. Configure l'identité du robot pour le commit
+          git config user.email "ci@bot.github.com"
+          git config user.name "GitHub Actions CI"
+          
+          # 3. Modifie le fichier deployment.yaml (s'il existe) avec le nouveau tag (github.sha)
+          MANIFEST_PATH="manifests/business/${{ matrix.app }}/deployment.yaml"
+          
+          if [ -f "$MANIFEST_PATH" ]; then
+            sed -i "s|image: .*${{ matrix.app }}:.*|image: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}|g" "$MANIFEST_PATH"
+            
+            # Commit et push uniquement s'il y a eu un changement
+            git commit -am "chore(gitops): bump ${{ matrix.app }} to ${{ github.sha }}" || echo "Aucun changement à commiter"
+            git push
+          else
+            echo "Le fichier $MANIFEST_PATH n'existe pas encore. L'étape de substitution est ignorée pour le moment."
+          fi
