@@ -6,6 +6,9 @@ on:
       - main
       - develop
 
+env:
+  MAJOR_MINOR: "1.0"
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,7 +50,7 @@ jobs:
           push: true
           tags: |
             ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:latest
-            ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}
+            ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:v${{ env.MAJOR_MINOR }}.${{ github.run_number }}
 
       - name: Trivy scan for ${{ matrix.app }}
         uses: aquasecurity/trivy-action@master
@@ -59,23 +62,35 @@ jobs:
 
       - name: Bump tag in gitops repo
         run: |
-          # 1. Clone le dépôt GitOps avec le fameux token
+          # 1. Clone le dépôt GitOps
           git clone https://x-access-token:${{ secrets.GITOPS_PAT }}@github.com/${{ env.REPO_OWNER }}/micro-trips-gitops.git
           cd micro-trips-gitops
           
-          # 2. Configure l'identité du robot pour le commit
+          # 2. Configure l'identité du robot
           git config user.email "ci@bot.github.com"
           git config user.name "GitHub Actions CI"
           
-          # 3. Modifie le fichier deployment.yaml (s'il existe) avec le nouveau tag (github.sha)
-          MANIFEST_PATH="manifests/business/${{ matrix.app }}/deployment.yaml"
-          
-          if [ -f "$MANIFEST_PATH" ]; then
-            sed -i "s|image: .*${{ matrix.app }}:.*|image: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}|g" "$MANIFEST_PATH"
-            
-            # Commit et push uniquement s'il y a eu un changement
-            git commit -am "chore(gitops): bump ${{ matrix.app }} to ${{ github.sha }}" || echo "Aucun changement à commiter"
-            git push
+          # 3. Détecte automatiquement si l'app utilise un Rollout ou un Deployment
+          if [ -f "manifests/business/${{ matrix.app }}/rollout.yaml" ]; then
+            MANIFEST_PATH="manifests/business/${{ matrix.app }}/rollout.yaml"
+          elif [ -f "manifests/business/${{ matrix.app }}/deployment.yaml" ]; then
+            MANIFEST_PATH="manifests/business/${{ matrix.app }}/deployment.yaml"
           else
-            echo "Le fichier $MANIFEST_PATH n'existe pas encore. L'étape de substitution est ignorée pour le moment."
+            echo "Erreur : Aucun fichier rollout.yaml ou deployment.yaml trouvé pour ${{ matrix.app }}"
+            exit 0
           fi
+          
+          # 4. Modifie l'image avec le nouveau Tag
+          VERSION="v${{ env.MAJOR_MINOR }}.${{ github.run_number }}"
+          sed -i "s|image: .*${{ matrix.app }}:.*|image: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${VERSION}|g" "$MANIFEST_PATH"
+
+          # 5. Ajoute le fichier modifié
+          git add "$MANIFEST_PATH"
+          
+          # 6. Commit
+          git commit -m "chore(gitops): bump ${{ matrix.app }} to ${VERSION}" || echo "Aucun changement à commiter"
+          
+          # 7. Télécharge les derniers changements des autres robots juste avant de pousser au cas ou
+          git pull --rebase origin main
+          
+          git push
