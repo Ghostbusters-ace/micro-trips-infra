@@ -56,7 +56,7 @@ jobs:
         uses: aquasecurity/trivy-action@master
         with:
           # On cible l'image qu'on vient juste de construire
-          image-ref: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:${{ github.sha }}
+          image-ref: ghcr.io/${{ env.REPO_OWNER }}/${{ matrix.app }}:v${{ env.MAJOR_MINOR }}.${{ github.run_number }}
           severity: HIGH,CRITICAL
           exit-code: '1' # ⚠️ obligatoire pour bloquer la pipeline
 
