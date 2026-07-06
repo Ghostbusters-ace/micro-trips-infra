@@ -5,16 +5,18 @@ import (
 	"catalog-api/internal/repositories"
 )
 
-type TripService struct {
-	repo *repositories.TripRepository
+type CatalogService interface {
+	GetTrips() ([]models.Trip, error)
 }
 
-// L'équivalent de l'injection de dépendance par constructeur en Java
-func NewTripService(repo *repositories.TripRepository) *TripService {
-	return &TripService{repo: repo}
+type catalogService struct {
+	repo repositories.CatalogRepository
 }
 
-func (s *TripService) GetAllAvailableTrips() []models.Trip {
-	// Ici on pourrait ajouter de la logique métier (ex: filtrer les trajets pleins)
-	return s.repo.FindAll()
+func NewCatalogService(repo repositories.CatalogRepository) CatalogService {
+	return &catalogService{repo: repo}
+}
+
+func (s *catalogService) GetTrips() ([]models.Trip, error) {
+	return s.repo.GetAll()
 }

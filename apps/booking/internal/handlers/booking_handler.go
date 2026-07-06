@@ -4,38 +4,36 @@ import (
 	"encoding/json"
 	"net/http"
 	"booking-api/internal/services"
+	"booking-api/internal/models"
 )
 
-// Requete entrante
-type CreateBookingRequest struct {
-	TripID string `json:"trip_id"`
-	User   string `json:"user"`
-}
-
 type BookingHandler struct {
-	service *services.BookingService
+	service services.BookingService
 }
 
-func NewBookingHandler(service *services.BookingService) *BookingHandler {
+func NewBookingHandler(service services.BookingService) *BookingHandler {
 	return &BookingHandler{service: service}
 }
 
-func (handler *BookingHandler) PostBooking(responseBooking http.ResponseWriter, request *http.Request) {
-	if request.Method != http.MethodPost {
-		http.Error(responseBooking, "Méthode non autorisée", http.StatusMethodNotAllowed)
+func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Méthode non autorisée", http.StatusMethodNotAllowed)
 		return
 	}
 
-	var bookingRequest CreateBookingRequest
-	if err := json.NewDecoder(request.Body).Decode(&bookingRequest); err != nil {
-		http.Error(responseBooking, err.Error(), http.StatusBadRequest)
+	var req BookingRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Payload JSON invalide", http.StatusBadRequest)
 		return
 	}
 
-	booking := handler.service.CreateBooking(bookingRequest.TripID, bookingRequest.User)
+	booking, err := h.service.CreateBooking(req.TripID, req.UserEmail)
+	if err != nil {
+		http.Error(w, "Erreur interne lors du traitement", http.StatusInternalServerError)
+		return
+	}
 
-	// Réponse au client
-	responseBooking.Header().Set("Content-Type", "application/json")
-	responseBooking.WriteHeader(http.StatusCreated)
-	json.NewEncoder(responseBooking).Encode(booking)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(booking)
 }

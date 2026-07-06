@@ -5,36 +5,36 @@ import (
 	"net/http"
 	"os"
 
-	"catalog-api/internal/handlers"
-	"catalog-api/internal/middlewares"
-	"catalog-api/internal/repositories"
-	"catalog-api/internal/services"
+	"Trip-api/internal/handlers"
+	"Trip-api/internal/middlewares"
+	"Trip-api/internal/repositories"
+	"Trip-api/internal/services"
+	"Trip-api/internal/database"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
+	log.Println("Initialisation du service Trip...")
 
-	// Récupération de la version depuis l'environnement (fournie par le manifeste K8s)
-	// Si elle n'est pas définie, on met "stable" par défaut
 	appVersion := os.Getenv("APP_VERSION")
 	if appVersion == "" {
 		appVersion = "stable"
 	}
 
-	// 1. Initialisation des couches (Injection de dépendances manuelle)
-	repo := repositories.NewTripRepository()
-	service := services.NewTripService(repo)
-	handler := handlers.NewTripHandler(service)
+	dbConnection := database.InitDB()
+	defer dbConnection.Close()
 
-	// Route Prometheus
+	TripRepo := repositories.NewPostgresTripRepository(dbConnection)
+	TripService := services.NewTripService(TripRepo)
+	TripHandler := handlers.NewTripHandler(TripService)
+
+	http.HandleFunc("/api/v1/trips", middlewares.PrometheusMiddleware(appVersion, TripHandler.HandleGetTrips))
 	http.Handle("/metrics", promhttp.Handler())
 
-	http.HandleFunc("/trips", middlewares.PrometheusMiddleware(appVersion, handler.GetTrips))
-
-	// 2. Démarrage du serveur web
-	log.Println("Catalog API démarrée sur le port 8080...")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal("Erreur lors du démarrage du serveur : ", err)
+	port := "8080"
+	log.Printf("Catalog API en écoute sur le port %s (Version: %s)", port, appVersion)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("❌ Crash : %v", err)
 	}
 }

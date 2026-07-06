@@ -9,30 +9,40 @@ import (
 	"booking-api/internal/middlewares"
 	"booking-api/internal/repositories"
 	"booking-api/internal/services"
+	"booking-api/internal/database"
+	"booking-api/internal/messasing"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 func main() {
+	log.Println("Initialisation du microservice Booking...")
 
-	// Récupération de la version depuis l'environnement (fournie par le manifeste K8s)
-	// Si elle n'est pas définie, on met "stable" par défaut
 	appVersion := os.Getenv("APP_VERSION")
 	if appVersion == "" {
 		appVersion = "stable"
 	}
 
-	repo := repositories.NewBookingRepository()
-	service := services.NewBookingService(repo)
-	handler := handlers.NewBookingHandler(service)
+	// ... (Initialisation DB, RabbitMQ, Repo, Publisher, Service, Handler identiques) ...
+	dbConnection := database.InitDB()
+	defer dbConnection.Close()
+	rabbitClient := messaging.InitRabbitMQ()
+	defer rabbitClient.Close()
 
-	// Route Prometheus
+	bookingRepo := repositories.NewPostgresBookingRepository(dbConnection)
+	eventPublisher := messaging.NewRabbitEventPublisher(rabbitClient.Channel)
+	bookingService := services.NewBookingService(bookingRepo, eventPublisher)
+	bookingHandler := handlers.NewBookingHandler(bookingService)
+
+
+	http.HandleFunc("/api/v1/bookings", middlewares.PrometheusMiddleware(appVersion, bookingHandler.HandleCreateBooking))
+
+	// Route pour Prometheus
 	http.Handle("/metrics", promhttp.Handler())
 
-	http.HandleFunc("/bookings", middlewares.PrometheusMiddleware(appVersion, handler.PostBooking))
-
-	log.Println("Booking API démarrée sur le port 8081...")
-	if err := http.ListenAndServe(":8081", nil); err != nil {
-		log.Fatal("Erreur : ", err)
+	port := "8080"
+	log.Printf("API Booking à l'écoute sur le port %s (Version: %s)", port, appVersion)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("❌ Crash du serveur HTTP : %v", err)
 	}
 }

@@ -1,34 +1,39 @@
 package services
 
 import (
+	"booking-api/internal/messaging"
 	"booking-api/internal/models"
 	"booking-api/internal/repositories"
-	"fmt"
-	"time"
 )
 
-type BookingService struct {
-	repo *repositories.BookingRepository
+type BookingService interface {
+	CreateBooking(tripID int, email string) (*models.Booking, error)
 }
 
-func NewBookingService(repo *repositories.BookingRepository) *BookingService {
-	return &BookingService{repo: repo}
+type bookingService struct {
+	repo      repositories.BookingRepository
+	publisher messaging.EventPublisher
 }
 
-func (s *BookingService) CreateBooking(tripID string, user string) models.Booking {
-	// 1. Création de l'objet avec statut PENDING
-	booking := models.Booking{
-		ID:     fmt.Sprintf("RES-%d", time.Now().Unix()),
-		TripID: tripID,
-		User:   user,
-		Status: "PENDING",
+func NewBookingService(repo repositories.BookingRepository, pub messaging.EventPublisher) BookingService {
+	return &bookingService{repo: repo, publisher: pub}
+}
+
+func (s *bookingService) CreateBooking(tripID int, email string) (*models.Booking, error) {
+	booking := &models.Booking{
+		TripID:    tripID,
+		UserEmail: email,
+		Status:    "PENDING",
 	}
 
-	// 2. Sauvegarde en BDD
-	s.repo.Save(booking)
+	id, err := s.repo.Create(booking)
+	if err != nil {
+		return nil, err
+	}
+	booking.ID = id
 
-	// 3. Envoi d'un événement à RabbitMQ (Simulé pour l'instant)
-	fmt.Printf("[RabbitMQ] Message envoyé : 'Traiter la réservation %s'\n", booking.ID)
+	// Publication asynchrone RabbitMQ via l'interface d'abstraction
+	_ = s.publisher.PublishBookingCreated(booking.ID, booking.UserEmail)
 
-	return booking
+	return booking, nil
 }

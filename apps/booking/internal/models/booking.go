@@ -6,3 +6,8 @@ type Booking struct {
 	User   string `json:"user"`
 	Status string `json:"status"` // PENDING, CONFIRMED, CANCELLED
 }
+
+type BookingRequest struct {
+	TripID      int    `json:"trip_id"`
+	UserEmail   string `json:"user_email"`
+}

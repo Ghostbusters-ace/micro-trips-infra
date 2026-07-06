@@ -1,18 +1,36 @@
 package repositories
 
-import "catalog-api/internal/models"
+import (
+	"database/sql"
+	"catalog-api/internal/models"
+)
 
-type TripRepository struct{}
-
-func NewTripRepository() *TripRepository {
-	return &TripRepository{}
+type TripRepository interface {
+	GetAll() ([]models.Trip, error)
 }
 
-// FindAll simule un appel à la base de données PostgreSQL
-func (r *TripRepository) FindAll() []models.Trip {
-	return []models.Trip{
-		{ID: "TRIP-123", Origin: "Paris", Destination: "Lyon", Price: 45.50},
-		{ID: "TRIP-456", Origin: "Marseille", Destination: "Toulouse", Price: 30.00},
-		{ID: "TRIP-789", Origin: "Lille", Destination: "Bordeaux", Price: 75.20},
+type postgresTripRepository struct {
+	db *sql.DB
+}
+
+func NewPostgresTripRepository(db *sql.DB) TripRepository {
+	return &postgresTripRepository{db: db}
+}
+
+func (r *postgresTripRepository) GetAll() ([]models.Trip, error) {
+	rows, err := r.db.Query("SELECT id, destination, price, description FROM trips")
+	if err != nil {
+		return nil, err
 	}
+	defer rows.Close()
+
+	var trips []models.Trip
+	for rows.Next() {
+		var t models.Trip
+		if err := rows.Scan(&t.ID, &t.Destination, &t.Price, &t.Description); err != nil {
+			return nil, err
+		}
+		trips = append(trips, t)
+	}
+	return trips, nil
 }
