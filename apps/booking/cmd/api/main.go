@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"os"
 
+	"booking-api/internal/database"
 	"booking-api/internal/handlers"
+	"booking-api/internal/messaging"
 	"booking-api/internal/middlewares"
 	"booking-api/internal/repositories"
 	"booking-api/internal/services"
-	"booking-api/internal/database"
-	"booking-api/internal/messasing"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

@@ -5,11 +5,11 @@ import (
 	"net/http"
 	"os"
 
-	"Trip-api/internal/handlers"
-	"Trip-api/internal/middlewares"
-	"Trip-api/internal/repositories"
-	"Trip-api/internal/services"
-	"Trip-api/internal/database"
+	"catalog-api/internal/database"
+	"catalog-api/internal/handlers"
+	"catalog-api/internal/middlewares"
+	"catalog-api/internal/repositories"
+	"catalog-api/internal/services"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

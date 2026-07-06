@@ -21,7 +21,7 @@ func (h *BookingHandler) HandleCreateBooking(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	var req BookingRequest
+	var req models.BookingRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "Payload JSON invalide", http.StatusBadRequest)
 		return
