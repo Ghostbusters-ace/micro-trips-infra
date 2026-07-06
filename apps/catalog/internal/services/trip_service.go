@@ -10,10 +10,10 @@ type CatalogService interface {
 }
 
 type catalogService struct {
-	repo repositories.CatalogRepository
+	repo repositories.TripRepository
 }
 
-func NewCatalogService(repo repositories.CatalogRepository) CatalogService {
+func NewTripService(repo repositories.TripRepository) CatalogService {
 	return &catalogService{repo: repo}
 }
 
