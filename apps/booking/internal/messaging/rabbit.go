@@ -30,7 +30,7 @@ func InitRabbitMQ() *RabbitClient {
 	}
 
 	uri := fmt.Sprintf("amqp://%s:%s@%s:5672/", user, password, host)
-	
+
 	conn, err := amqp.Dial(uri)
 	if err != nil {
 		log.Fatalf("❌ Impossible de se connecter à RabbitMQ : %v", err)
