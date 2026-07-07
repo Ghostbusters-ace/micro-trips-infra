@@ -18,8 +18,19 @@ func InitRabbitMQ() *RabbitClient {
 	if host == "" {
 		host = "localhost"
 	}
+	
+	user := os.Getenv("RABBITMQ_USER")
+	if user == "" {
+		user = "guest"
+	}
+	
+	password := os.Getenv("RABBITMQ_PASSWORD")
+	if password == "" {
+		password = "guest"
+	}
 
-	uri := fmt.Sprintf("amqp://guest:guest@%s:5672/", host)
+	uri := fmt.Sprintf("amqp://%s:%s@%s:5672/", user, password, host)
+
 	conn, err := amqp.Dial(uri)
 	if err != nil {
 		log.Fatalf("❌ Impossible de se connecter à RabbitMQ : %v", err)
